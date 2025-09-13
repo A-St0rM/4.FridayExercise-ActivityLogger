@@ -1,33 +1,52 @@
 package app;
 
-import app.DAO.IParcelDAO;
-import app.DAO.ParcelDAOImpl;
-import app.config.HibernateConfig;
-import jakarta.persistence.EntityManagerFactory;
+
+import app.DTO.ActivityDTO;
+import app.DTO.CityInfoDTO;
+import app.DTO.WeatherWrapper;
+import app.enums.ExerciseType;
+import app.service.CityServices;
+import app.service.DTOConverters;
+import app.service.WeatherServices;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.Optional;
 
 public class Main {
     public static void main(String[] args) {
-        EntityManagerFactory emf = HibernateConfig.getEntityManagerFactory();
-        try {
-            IParcelDAO parcelDAO = new ParcelDAOImpl(emf);
+        System.out.println("Activitylogger output >>>>");
 
-            // EKSEMPEL: opret → læs → slet
-            Parcel p = Parcel.builder()
-                    .trackingNumber("ABC123")
-                    .senderName("Haidar")
-                    .receiverName("Andrea")
-                    .build();
+        String city = "Rørvig";
 
-            parcelDAO.save(p);
-            System.out.println("Saved id: " + p.getId());
+        // ******* Fetch and convert CityInfo from https://open-meteo.com/en/docs/geocoding-api
+        CityServices cityServices = new CityServices();
+        Optional<CityInfoDTO> cityInfoDTO = cityServices.getCityInfo(city);
 
-            parcelDAO.getAll().forEach(System.out::println);
+        // Extract latitude and longitude from the city to be used for weather location
+        double latitude = cityInfoDTO.map(CityInfoDTO::getLatitude).orElse(0.0);
+        double longitude = cityInfoDTO.map(CityInfoDTO::getLongitude).orElse(0.0);
 
-            parcelDAO.delete(p.getId());
-            System.out.println("Deleted id: " + p.getId());
+        // ******* Fetch WeatherInfo from https://open-meteo.com/en/docs
+        WeatherServices weatherServices = new WeatherServices();
+        WeatherWrapper weatherWrapper = weatherServices.getCityWeatherInfo(latitude, longitude);
 
-        } finally {
-            emf.close(); // vigtigt at lukke EFTER brug
+        // **** Convert city and weatherinfo and build the final ActivityDTO
+        DTOConverters dtoConverters = new DTOConverters();
+        ActivityDTO activityDTO = ActivityDTO.builder()
+                .exerciseDate(LocalDate.of(2025, 9, 11))
+                .duration(LocalTime.of(0,35))
+                .distance(5750)
+                .comment("Nice jog - suns out - guns out")
+                .exerciseType(ExerciseType.JOGGING)
+                .cityInfoDTO(cityInfoDTO.orElse(null))
+                .weatherDTO(dtoConverters.fromWeatherWrapper(weatherWrapper))
+                .build();
+
+        // ***** Print out results - including a Google Map link
+        System.out.println(activityDTO);
+        if (activityDTO.getCityInfoDTO() != null) {
+            System.out.println(activityDTO.getCityInfoDTO()
+                    .getGoogleMapLink(10));
         }
     }
 }
