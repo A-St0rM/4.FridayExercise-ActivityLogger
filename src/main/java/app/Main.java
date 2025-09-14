@@ -4,18 +4,26 @@ package app;
 import app.DTO.ActivityDTO;
 import app.DTO.CityInfoDTO;
 import app.DTO.WeatherWrapper;
+import app.config.HibernateConfig;
 import app.enums.ExerciseType;
 import app.service.CityServices;
 import app.service.DTOConverters;
 import app.service.WeatherServices;
+import jakarta.persistence.EntityManagerFactory;
+
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.Optional;
 
 public class Main {
-    public static void main(String[] args) {
-        System.out.println("Activitylogger output >>>>");
 
+    private static EntityManagerFactory emf;
+
+    public static void main(String[] args) {
+
+        emf = HibernateConfig.getEntityManagerFactory();
+
+        System.out.println("Activitylogger output >>>>");
         String city = "Rørvig";
 
         // ******* Fetch and convert CityInfo from https://open-meteo.com/en/docs/geocoding-api
